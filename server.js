@@ -10,6 +10,8 @@ const passport = require('passport-local')
 const flash = require('express-flash')
 const session = require('express-session')
 const initializePassport = require('./passport-config') 
+//const passport = require('passport')
+const methodOverride = require('method-override')
 
 initializePassport(
     passport,
@@ -29,15 +31,16 @@ app.use(session({
 }))
 app.use(passport.initialize())
 app.use(passport.session())
+app.use(methodOverride('_method'))
 
 
 /*Homepage*/
-app.get('/', (req, res) => {
+app.get('/', CheckAuthenticated , (req, res) => {
     res.render('index.ejs', { name : 'John'})
 })
 
 /*Login Page*/
-app.get('/login', (req, res) => {
+app.get('/login', CheckNotAuthenticated ,(req, res) => {
     res.render('login.ejs')
 })
 
@@ -47,14 +50,14 @@ app.get('/register', (req, res) => {
 })
 
 /*La méthode POST*/
-app.post('/login', passport.authenticate('local', {
+app.post('/login', CheckNotAuthenticated,passport.authenticate('local', {
     successRedirect: '/',
     failureRedirect: '/login',
     failureFlash: true
 }))
 
 
-app.post('/register', async (req, res) => {
+app.post('/register', CheckNotAuthenticated ,async (req, res) => {
     try {
         const hashedPassword = await bcrypt.hash(req.body.password, 10)
         users.push({
@@ -67,7 +70,30 @@ app.post('/register', async (req, res) => {
     } catch {
         res.redirect('/register')
     }
-    console.log( users)
+    // console.log( users)
 })
+
+app.delete('/logout', (req, res) => {
+    req.logOut()
+    res.redirect('/login')
+})
+
+function CheckAuthenticated(req, res, next)
+{
+    if(req.isAuthenticated())
+    {
+        return next()
+    }
+    res.redirect('/login')
+}
+
+function CheckNotAuthenticated(req, res, next)
+{
+    if(req.isAuthenticated())
+    {
+        return res.redirect('/')
+    }
+    next()
+}
 
 app.listen(3000)
